@@ -1,0 +1,14 @@
+sources:
+  "0.9.24":
+    sha256: 0ceae8a7ae946ee8ff8c3951af98b046e478fdea5210744d42fbdea9dd055c66
+    url: https://git.openldap.org/openldap/openldap/-/archive/LMDB_0.9.24/openldap-LMDB_0.9.24.tar.gz
+  "0.9.25":
+    sha256: 4f6eebe5ad98c10a75badd106f498ee2249d454352d048c78a49c99c940d4cae
+    url: https://git.openldap.org/openldap/openldap/-/archive/LMDB_0.9.25/openldap-LMDB_0.9.25.tar.gz
+patches:
+  "0.9.24":
+    - patch_file: "patches/0001-Add-CMake-and-resolve-Windows-build-errors.patch"
+      base_path: "source_subfolder"
+  "0.9.25":
+    - patch_file: "patches/0001-Add-CMake-and-resolve-Windows-build-errors.patch"
+      base_path: "source_subfolder"

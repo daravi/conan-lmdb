@@ -1,0 +1,162 @@
+From ee9feb5594be254395d40b4a1d3504f72a82f012 Mon Sep 17 00:00:00 2001
+From: Puya Daravi <puya@motionmetrics.com>
+Date: Sat, 25 Jul 2020 22:29:02 -0700
+Subject: [PATCH] Add CMake and resolve Windows build errors
+
+---
+ CMakeLists.txt | 21 +++++++++++++++++++++
+ mdb_dump.c     | 17 +++++++++++------
+ mdb_load.c     |  5 +++++
+ mdb_stat.c     | 13 ++++++++++++-
+ 4 files changed, 49 insertions(+), 7 deletions(-)
+ create mode 100644 CMakeLists.txt
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..82faa7f
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,21 @@
++cmake_minimum_required (VERSION 3.0)
++project (lmdb)
++
++set(src_dir ${CMAKE_CURRENT_SOURCE_DIR})
++
++set(CMAKE_DEBUG_POSTFIX "d")
++set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
++set(LIBRARY_OUTPUT_PATH  ${CMAKE_BINARY_DIR}/lib)
++set_property(GLOBAL PROPERTY USE_FOLDERS ON)
++
++set(lmdb_src_files ${src_dir}/mdb.c ${src_dir}/lmdb.h ${src_dir}/midl.h ${src_dir}/midl.c)
++add_library(lmdb ${lmdb_src_files})
++
++set(available_executables copy stat dump load)
++foreach(exec ${available_executables})
++    string(TOUPPER ${exec} EXEC)
++    if(LMDB_BUILD_${EXEC})
++        add_executable(mdb_${exec} ${src_dir}/mdb_${exec}.c)
++        target_link_libraries(mdb_${exec} lmdb)
++    endif()
++endforeach()
+diff --git a/mdb_dump.c b/mdb_dump.c
+index ee7dbe8..35ba7ab 100644
+--- a/mdb_dump.c
++++ b/mdb_dump.c
+@@ -16,7 +16,12 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <ctype.h>
++#ifdef	_WIN32
++#include <io.h>
++#include <getopt.h>
++#else
+ #include <unistd.h>
++#endif
+ #include <signal.h>
+ #include "lmdb.h"
+ 
+@@ -53,7 +58,7 @@ static void dumpsig( int sig )
+ 
+ static const char hexc[] = "0123456789abcdef";
+ 
+-static void hex(unsigned char c)
++static void print_hex(unsigned char c)
+ {
+ 	putchar(hexc[c >> 4]);
+ 	putchar(hexc[c & 0xf]);
+@@ -73,14 +78,14 @@ static void text(MDB_val *v)
+ 			putchar(*c);
+ 		} else {
+ 			putchar('\\');
+-			hex(*c);
++			print_hex(*c);
+ 		}
+ 		c++;
+ 	}
+ 	putchar('\n');
+ }
+ 
+-static void byte(MDB_val *v)
++static void print_bytes(MDB_val *v)
+ {
+ 	unsigned char *c, *end;
+ 
+@@ -88,7 +93,7 @@ static void byte(MDB_val *v)
+ 	c = v->mv_data;
+ 	end = c + v->mv_size;
+ 	while (c < end) {
+-		hex(*c++);
++		print_hex(*c++);
+ 	}
+ 	putchar('\n');
+ }
+@@ -144,8 +149,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
+ 			text(&key);
+ 			text(&data);
+ 		} else {
+-			byte(&key);
+-			byte(&data);
++			print_bytes(&key);
++			print_bytes(&data);
+ 		}
+ 	}
+ 	printf("DATA=END\n");
+diff --git a/mdb_load.c b/mdb_load.c
+index c4bcfc2..660edcb 100644
+--- a/mdb_load.c
++++ b/mdb_load.c
+@@ -16,7 +16,12 @@
+ #include <errno.h>
+ #include <string.h>
+ #include <ctype.h>
++#ifdef	_WIN32
++#include <io.h>
++#include <getopt.h>
++#else
+ #include <unistd.h>
++#endif
+ #include "lmdb.h"
+ 
+ #define PRINT	1
+diff --git a/mdb_stat.c b/mdb_stat.c
+index cb73e11..0017433 100644
+--- a/mdb_stat.c
++++ b/mdb_stat.c
+@@ -14,7 +14,12 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#ifdef	_WIN32
++#include <io.h>
++#include <getopt.h>
++#else
+ #include <unistd.h>
++#endif
+ #include "lmdb.h"
+ 
+ #ifdef	_WIN32
+@@ -23,6 +28,12 @@
+ #define	Z	"z"
+ #endif
+ 
++#ifdef	_WIN32
++#define SSIZE_TYPE SSIZE_T
++#else
++#define SSIZE_TYPE ssize_t
++#endif
++
+ static void prstat(MDB_stat *ms)
+ {
+ #if 0
+@@ -177,7 +188,7 @@ int main(int argc, char *argv[])
+ 			if (freinfo > 1) {
+ 				char *bad = "";
+ 				size_t pg, prev;
+-				ssize_t i, j, span = 0;
++				SSIZE_TYPE i, j, span = 0;
+ 				j = *iptr++;
+ 				for (i = j, prev = 1; --i >= 0; ) {
+ 					pg = iptr[i];
+-- 
+2.27.0.windows.1
+
